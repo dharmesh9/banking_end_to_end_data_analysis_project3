@@ -53,3 +53,37 @@ FROM investment_advisors;
 SELECT IAId, COUNT(*) AS client_count
 FROM clients
 GROUP BY IAId;
+
+-- 11. Clients with specific gender
+-- Retrieves all clients where GenderId = 1 (male)
+SELECT * 
+FROM clients 
+WHERE GenderId = 1;
+
+
+-- 12. Clients with specific advisor
+-- Shows all clients assigned to investment advisor with ID 5
+SELECT * 
+FROM clients 
+WHERE IAId = 5;
+
+
+-- 13. Clients with multiple conditions (AND)
+-- Returns clients who are male AND are managed by advisor ID 5
+SELECT * 
+FROM clients 
+WHERE GenderId = 1 AND IAId = 5;
+
+
+-- 14. Clients with multiple conditions (OR)
+-- Returns clients who are either male OR managed by advisor ID 5
+SELECT * 
+FROM clients 
+WHERE GenderId = 1 OR IAId = 5;
+
+
+-- 15. Clients NOT with specific advisor
+-- Retrieves clients who are not assigned to advisor ID 5
+SELECT * 
+FROM clients 
+WHERE IAId != 5;
