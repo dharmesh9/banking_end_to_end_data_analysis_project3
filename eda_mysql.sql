@@ -127,14 +127,32 @@ WHERE BRId != 1;
 -- ================================
 
 -- 21. Business Question: Show client details with their gender information.
+SELECT c.*, g.*
+FROM clients c
+INNER JOIN gender g ON c.GenderId = g.GenderId;
 
 -- 22. Business Question: Show clients with their banking relationship details.
+SELECT c.*, br.*
+FROM clients c 
+INNER JOIN banking_relationships br on c.BRId = br.BRId;
 
 -- 23. Business Question: Show clients with their advisor information.
+SELECT c.*, ia.*
+FROM clients c 
+INNER JOIN investment_advisors ia on c.IAId = ia.IAId;
 
 -- 24. Business Question: Show complete client profile with gender, banking, and advisor info.
+SELECT c.*,g.*,br.*,ia.*
+FROM clients c 
+INNER JOIN gender g on c.GenderId = g.GenderId
+INNER JOIN banking_relationships br  on  c.BRId = br.BRId
+INNER JOIN investment_advisors ia on c.IAId = ia.IAId;
 
 -- 25. Business Question: How many clients does each advisor have (showing advisor details)?
+SELECT ia.*, COUNT(c.BRId) AS client_count
+FROM investment_advisors ia
+INNER JOIN clients c ON ia.IAId = c.IAId
+GROUP BY ia.IAId;
 
 -- 26. Business Question: Show female clients with their advisor information.
 
