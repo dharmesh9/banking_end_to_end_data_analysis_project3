@@ -155,15 +155,37 @@ INNER JOIN clients c ON ia.IAId = c.IAId
 GROUP BY ia.IAId;
 
 -- 26. Business Question: Show female clients with their advisor information.
+SELECT c.*, ia.*
+FROM clients c
+INNER JOIN investment_advisors ia ON c.IAId = ia.IAId
+WHERE c.GenderId = 2;
 
 -- 27. Business Question: Which advisors manage more than 10 clients?
+SELECT ia.*, COUNT(c.BRId) AS client_count
+FROM investment_advisors ia
+INNER JOIN clients c ON ia.IAId = c.IAId
+GROUP BY ia.IAId
+HAVING COUNT(c.BRId) > 10;
 
 -- 28. Business Question: Count clients by gender and banking relationship type.
+SELECT g.GenderId, br.BRId, COUNT(*) AS client_count
+FROM clients c
+INNER JOIN gender g ON c.GenderId = g.GenderId
+INNER JOIN banking_relationships br ON c.BRId = br.BRId
+GROUP BY g.GenderId, br.BRId
+ORDER BY g.GenderId, br.BRId;
 
 -- 29. Business Question: Show clients with advisors, ordered by advisor ID.
+SELECT c.Name, ia.*
+FROM clients c
+INNER JOIN investment_advisors ia ON c.IAId = ia.IAId
+ORDER BY ia.IAId, c.BRId;
 
 -- 30. Business Question: Find clients who share the same advisor and gender.
-
+SELECT c1.Name, c1.BRId AS client1, c2.BRId AS client2, c1.IAId, c1.GenderId
+FROM clients c1
+INNER JOIN clients c2 ON c1.IAId = c2.IAId AND c1.GenderId = c2.GenderId
+WHERE c1.BRId < c2.BRId;
 
 -- ================================
 -- SECTION 4: LEFT JOIN (31–40)
