@@ -192,16 +192,38 @@ WHERE c1.BRId < c2.BRId;
 -- ================================
 
 -- 31. Business Question: Show all advisors and how many clients they have (including those with no clients).
+SELECT ia.IAId,ia.`Investment Advisor`, COUNT(c.IAId)
+FROM investment_advisors ia
+LEFT JOIN clients c ON ia.IAId = c.IAId
+GROUP BY ia.IAId;
 
 -- 32. Business Question: Which advisors have no clients assigned?
+SELECT ia.IAId,
+    ia.`Investment Advisor`
+FROM investment_advisors ia
+LEFT JOIN clients c on ia.IAId = c.IAId
+WHERE c.IAId IS NULL;
 
 -- 33. Business Question: Show all banking relationship types and their client counts.
+SELECT br.*, COUNT(c.BRId) AS client_count
+FROM banking_relationships br
+LEFT JOIN clients c ON br.BRId = c.BRId
+GROUP BY br.BRId;
 
 -- 34. Business Question: Which banking relationship types have no clients?
+SELECT br.*
+FROM banking_relationships br
+LEFT JOIN clients c ON br.BRId = c.BRId
+WHERE c.BRId IS NULL;
 
 -- 35. Business Question: Show client count for each gender category.
+SELECT g.*, COUNT(c.GenderId) AS client_count
+FROM gender g
+LEFT JOIN clients c ON g.GenderId = c.GenderId
+GROUP BY g.GenderId;
 
 -- 36. Business Question: Show all advisors with client counts by gender (including advisors with no clients).
+
 
 -- 37. Business Question: Show advisors with client count, displaying 0 for those with no clients.
 
