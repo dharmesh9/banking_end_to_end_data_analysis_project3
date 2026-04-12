@@ -223,16 +223,56 @@ LEFT JOIN clients c ON g.GenderId = c.GenderId
 GROUP BY g.GenderId;
 
 -- 36. Business Question: Show all advisors with client counts by gender (including advisors with no clients).
-
+SELECT 
+    ia.IAId, 
+    g.GenderId, 
+    COUNT(c.Client_ID) AS client_count
+FROM investment_advisors ia
+LEFT JOIN clients c ON ia.IAId = c.IAId
+LEFT JOIN gender g ON c.GenderId = g.GenderId
+GROUP BY ia.IAId, g.GenderId;
 
 -- 37. Business Question: Show advisors with client count, displaying 0 for those with no clients.
+SELECT 
+    ia.IAId, 
+    COUNT(c.Client_Id) AS client_count
+FROM investment_advisors ia
+LEFT JOIN clients c ON ia.IAId = c.IAId
+GROUP BY ia.IAId;
 
 -- 38. Business Question: What percentage of banking relationships are actually being used?
-
+SELECT 
+    COUNT(DISTINCT br.BRId) AS total_relationships,
+    COUNT(DISTINCT c.BRId) AS used_relationships,
+    (COUNT(DISTINCT c.BRId) * 100.0 / NULLIF(COUNT(DISTINCT br.BRId), 0)) 
+        AS usage_percentage
+FROM banking_relationships br
+LEFT JOIN clients c 
+    ON br.BRId = c.BRId;
+    
 -- 39. Business Question: Show which advisor-gender combinations have no clients.
+SELECT 
+    ia.IAId, 
+    g.GenderId
+FROM investment_advisors ia
+CROSS JOIN gender g
+LEFT JOIN clients c 
+    ON ia.IAId = c.IAId 
+    AND g.GenderId = c.GenderId
+GROUP BY ia.IAId, g.GenderId
+HAVING COUNT(c.Client_Id) = 0;
 
 -- 40. Business Question: Show advisors with their male and female client counts separately.
-
+SELECT 
+    ia.IAId,
+    SUM(CASE WHEN g.GenderId = 1 THEN 1 ELSE 0 END) AS male_clients,
+    SUM(CASE WHEN g.GenderId = 2 THEN 1 ELSE 0 END) AS female_clients
+FROM investment_advisors ia
+LEFT JOIN clients c 
+    ON ia.IAId = c.IAId
+LEFT JOIN gender g 
+    ON c.GenderId = g.GenderId
+GROUP BY ia.IAId;
 
 -- ================================
 -- SECTION 5: RIGHT / FULL JOIN (41–45)
