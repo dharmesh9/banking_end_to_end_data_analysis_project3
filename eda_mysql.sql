@@ -279,15 +279,53 @@ GROUP BY ia.IAId;
 -- ================================
 
 -- 41. Business Question: Show all clients with their advisor information (client-centric view).
-
+SELECT c.*, ia.*
+FROM investment_advisors ia
+RIGHT JOIN clients c
+    ON c.IAId = ia.IAId;
+    
 -- 42. Business Question: Find clients whose advisor ID doesn't exist in the advisors table.
+SELECT c.*
+FROM investment_advisors ia
+RIGHT JOIN clients c
+    ON c.IAId = ia.IAId
+WHERE ia.IAId IS NULL;
 
 -- 43. Business Question: Show all advisors and all clients, whether matched or not.
+SELECT c.*, ia.*
+FROM clients c
+LEFT JOIN investment_advisors ia 
+    ON c.IAId = ia.IAId
+
+UNION
+
+SELECT c.*, ia.*
+FROM clients c
+RIGHT JOIN investment_advisors ia 
+    ON c.IAId = ia.IAId;
 
 -- 44. Business Question: Show complete mapping of banking relationships and clients.
+SELECT br.*, c.*
+FROM banking_relationships br
+LEFT JOIN clients c 
+    ON br.BRId = c.BRId
+
+UNION
+
+SELECT br.*, c.*
+FROM banking_relationships br
+RIGHT JOIN clients c 
+    ON br.BRId = c.BRId;
 
 -- 45. Business Question: For each client, show how many other clients share the same advisor.
-
+SELECT 
+    c1.Client_ID,
+    c1.IAId,
+    COUNT(c2.Client_ID) - 1 AS other_clients_with_same_advisor
+FROM clients c1
+JOIN clients c2 
+    ON c1.IAId = c2.IAId
+GROUP BY c1.Client_ID, c1.IAId;
 
 -- ================================
 -- SECTION 6: Subqueries (46–55)
