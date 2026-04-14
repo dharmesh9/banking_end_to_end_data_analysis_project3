@@ -391,16 +391,81 @@ WHERE c.IAId IN (
         ) t
     )
 );
+
 -- 51. Business Question: Which banking relationships are used more than average?
+SELECT br.BRId, COUNT(c.BRId) AS usage_count
+FROM banking_relationships br
+LEFT JOIN clients c ON br.BRId = c.BRId
+GROUP BY br.BRId
+HAVING COUNT(c.BRId) > (
+    SELECT AVG(usage_count)
+    FROM (
+        SELECT br2.BRId, COUNT(c2.BRId) AS usage_count
+        FROM banking_relationships br2
+        LEFT JOIN clients c2 ON br2.BRId = c2.BRId
+        GROUP BY br2.BRId
+    ) t
+);
 
 -- 52. Business Question: Show clients belonging to the gender with fewer total clients.
+SELECT c.Name, c.GenderId
+FROM clients c
+WHERE c.GenderId IN (
+    SELECT GenderId
+    FROM clients
+    GROUP BY GenderId
+    HAVING COUNT(*) = (
+        SELECT MIN(cnt)
+        FROM (
+            SELECT COUNT(*) AS cnt
+            FROM clients
+            GROUP BY GenderId
+        ) t
+    )
+);
 
 -- 53. Business Question: Which advisors are in the top 25% by number of clients?
+SELECT IAId, client_count
+FROM (
+    SELECT 
+        IAId,
+        COUNT(*) AS client_count,
+        NTILE(4) OVER (ORDER BY COUNT(*) DESC) AS quartile
+    FROM clients
+    GROUP BY IAId
+) t
+WHERE quartile = 1;
 
 -- 54. Business Question: For each client, show how many clients their advisor manages.
+SELECT 
+    c.BRId,
+    c.IAId,
+    (
+        SELECT COUNT(*) 
+        FROM clients c2 
+        WHERE c2.IAId = c.IAId
+    ) AS advisor_total_clients
+FROM clients c;
 
 -- 55. Business Question: Show banking relationships and their rank by popularity.
-
+SELECT 
+    br.BRId,
+    (
+        SELECT COUNT(*) 
+        FROM clients c 
+        WHERE c.BRId = br.BRId
+    ) AS client_count,
+    (
+        SELECT COUNT(*) + 1
+        FROM banking_relationships br2
+        WHERE (
+            SELECT COUNT(*) FROM clients c WHERE c.BRId = br2.BRId
+        ) > (
+            SELECT COUNT(*) FROM clients c WHERE c.BRId = br.BRId
+        )
+    ) AS popularity_rank
+FROM banking_relationships br
+ORDER BY popularity_rank;
 
 -- ================================
 -- SECTION 7: IN / EXISTS (56–65)
