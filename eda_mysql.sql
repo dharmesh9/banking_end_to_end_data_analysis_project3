@@ -332,15 +332,65 @@ GROUP BY c1.Client_ID, c1.IAId;
 -- ================================
 
 -- 46. Business Question: Show clients whose advisor manages more clients than average.
+SELECT c.*
+FROM clients c
+WHERE (
+    SELECT COUNT(*) 
+    FROM clients c2 
+    WHERE c2.IAId = c.IAId
+) > (
+    SELECT AVG(client_count)
+    FROM (
+        SELECT COUNT(*) AS client_count
+        FROM clients
+        GROUP BY IAId
+    ) t
+);
 
 -- 47. Business Question: Which banking relationship type has the most clients?
+SELECT br.BRId,
+       (SELECT COUNT(*) FROM clients c WHERE c.BRId = br.BRId) AS client_count
+FROM banking_relationships br
+ORDER BY client_count DESC
+LIMIT 1;
 
--- 48. Business Question: Which advisors manage more clients than the median?
+-- 48. Business Question: Which advisors manage more clients than the average?
+SELECT IAId, COUNT(*) AS client_count
+FROM clients
+GROUP BY IAId
+HAVING COUNT(*) > (
+    SELECT AVG(client_count)
+    FROM (
+        SELECT COUNT(*) AS client_count
+        FROM clients
+        GROUP BY IAId
+    ) t
+);
 
 -- 49. Business Question: Show each gender's percentage of total clients.
+SELECT 
+    GenderId,
+    COUNT(*) AS gender_count,
+    ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM clients)),2) AS percentage
+FROM clients
+GROUP BY GenderId;
 
 -- 50. Business Question: Show clients who work with the advisor that has the most clients.
-
+SELECT c.*
+FROM clients c
+WHERE c.IAId IN (
+    SELECT IAId
+    FROM clients
+    GROUP BY IAId
+    HAVING COUNT(*) = (
+        SELECT MAX(cnt)
+        FROM (
+            SELECT COUNT(*) AS cnt
+            FROM clients
+            GROUP BY IAId
+        ) t
+    )
+);
 -- 51. Business Question: Which banking relationships are used more than average?
 
 -- 52. Business Question: Show clients belonging to the gender with fewer total clients.
