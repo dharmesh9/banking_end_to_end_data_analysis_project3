@@ -527,18 +527,144 @@ CROSS JOIN AvgCount avg
 WHERE ac.client_count > avg.avg_clients;
 
 -- 69. Business Question: Calculate market share for each advisor.
+WITH AdvisorClients AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+),
+TotalClients AS (
+    SELECT COUNT(*) AS total
+    FROM clients
+)
+SELECT 
+    ac.IAId,
+    ac.client_count,
+    tc.total,
+    ROUND(ac.client_count * 100.0 / NULLIF(tc.total, 0), 2) AS market_share_pct
+FROM AdvisorClients ac
+CROSS JOIN TotalClients tc
+ORDER BY market_share_pct DESC;
 
--- 70. Business Question: Rank advisors by client count and show top 3.
+-- 70. Business Question: Rank advisors by client count and show top 5.
+WITH AdvisorCounts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+),
+RankedAdvisors AS (
+    SELECT 
+        IAId,
+        client_count,
+        ROW_NUMBER() OVER (ORDER BY client_count DESC) AS rank_num
+    FROM AdvisorCounts
+)
+SELECT 
+    ra.rank_num,
+    ia.IAId,
+    ia.`Investment Advisor`,
+    ra.client_count
+FROM RankedAdvisors ra
+JOIN investment_advisors ia 
+    ON ra.IAId = ia.IAId
+WHERE ra.rank_num <= 5
+ORDER BY ra.rank_num;
 
 -- 71. Business Question: Create a pivot-like view of gender distribution per advisor.
+WITH GenderByAdvisor AS (
+    SELECT 
+        IAId,
+        GenderId,
+        COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId, GenderId
+)
+SELECT 
+    IAId,
+    SUM(CASE WHEN GenderId = 1 THEN client_count ELSE 0 END) AS male_clients,
+    SUM(CASE WHEN GenderId = 2 THEN client_count ELSE 0 END) AS female_clients,
+    SUM(client_count) AS total_clients
+FROM GenderByAdvisor
+GROUP BY IAId;
 
 -- 72. Business Question: Show advisor performance tiers.
+WITH AdvisorPerformance AS (
+    SELECT 
+        IAId, 
+        COUNT(*) AS client_count,
+        CASE 
+            WHEN COUNT(*) >= 20 THEN 'High Performer'
+            WHEN COUNT(*) >= 10 THEN 'Medium Performer'
+            ELSE 'Low Performer'
+        END AS performance_tier
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    performance_tier,
+    COUNT(*) AS advisor_count,
+    AVG(client_count) AS avg_clients
+FROM AdvisorPerformance
+GROUP BY performance_tier;
 
 -- 73. Business Question: Average clients per advisor, excluding advisors with less than 5 clients.
+WITH QualifiedAdvisors AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+    HAVING COUNT(*) >= 5
+)
+SELECT 
+    COUNT(*) AS qualified_advisor_count,
+    AVG(client_count) AS avg_clients,
+    MIN(client_count) AS min_clients,
+    MAX(client_count) AS max_clients
+FROM QualifiedAdvisors;
 
 -- 74. Business Question: Find advisors who manage clients with all available banking relationship types.
+WITH AdvisorBankingTypes AS (
+    SELECT IAId, COUNT(DISTINCT BRId) AS banking_types
+    FROM clients
+    GROUP BY IAId
+),
+TotalBankingTypes AS (
+    SELECT COUNT(DISTINCT BRId) AS total_types
+    FROM banking_relationships
+)
+SELECT abt.IAId, abt.banking_types
+FROM AdvisorBankingTypes abt
+CROSS JOIN TotalBankingTypes tbt
+WHERE abt.banking_types = tbt.total_types;
 
 -- 75. Business Question: Calculate cumulative client distribution across advisors.
+WITH AdvisorCounts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+),
+SortedAdvisors AS (
+    SELECT 
+        IAId,
+        client_count,
+        ROW_NUMBER() OVER (ORDER BY client_count DESC) AS position
+    FROM AdvisorCounts
+),
+CumulativeData AS (
+    SELECT 
+        IAId,
+        client_count,
+        position,
+        SUM(client_count) OVER (ORDER BY position) AS cumulative_clients,
+        SUM(client_count) OVER () AS total_clients
+    FROM SortedAdvisors
+)
+SELECT 
+    IAId,
+    client_count,
+    position,
+    cumulative_clients,
+    ROUND(cumulative_clients * 100.0 / total_clients, 2) AS cumulative_percentage
+FROM CumulativeData
+ORDER BY cumulative_percentage  DESC;
 
 
 -- ================================
