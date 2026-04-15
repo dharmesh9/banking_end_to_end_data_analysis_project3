@@ -422,17 +422,57 @@ SELECT *
 FROM investment_advisors ia
 WHERE NOT EXISTS (SELECT name FROM clients c WHERE c.IAId = ia.IAId);
 
-
--- 61. Business Question: Show all clients who share an advisor with client BRId = 100.
+-- 61. Business Question: Show all clients who share an advisor with Client_Id = 'IND95683'.
+SELECT *
+FROM clients c
+WHERE c.IAId IN (
+    SELECT IAId FROM clients WHERE Client_Id = 'IND95683'
+)
+AND c.Client_Id != 'IND95683';
 
 -- 62. Business Question: Show all clients belonging to the most populous gender.
+SELECT *
+FROM clients c
+WHERE c.GenderId IN (
+    SELECT GenderId
+    FROM (
+        SELECT GenderId
+        FROM clients
+        GROUP BY GenderId
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+    ) AS top_gender
+);
 
 -- 63. Business Question: Clients with popular advisors AND popular banking relationships.
+SELECT *
+FROM clients c
+WHERE c.IAId IN (
+    SELECT IAId FROM clients GROUP BY IAId HAVING COUNT(*) > 150
+)
+AND c.BRId IN (
+    SELECT BRId FROM clients GROUP BY BRId HAVING COUNT(*) > 500
+);
 
 -- 64. Business Question: Advisors managing clients of all genders.
+SELECT DISTINCT ia.*
+FROM investment_advisors ia
+WHERE EXISTS (
+    SELECT * FROM clients c 
+    WHERE c.IAId = ia.IAId AND c.GenderId = 1
+)
+AND EXISTS (
+    SELECT * FROM clients c 
+    WHERE c.IAId = ia.IAId AND c.GenderId = 2
+);
 
 -- 65. Business Question: Advisors who don't manage any male clients.
-
+SELECT *
+FROM investment_advisors ia
+WHERE NOT EXISTS (
+    SELECT * FROM clients c 
+    WHERE c.IAId = ia.IAId AND c.GenderId = 1
+);
 
 -- ================================
 -- SECTION 8: CTEs (66–75)
