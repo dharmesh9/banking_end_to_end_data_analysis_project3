@@ -391,95 +391,37 @@ WHERE c.IAId IN (
         ) t
     )
 );
-
--- 51. Business Question: Which banking relationships are used more than average?
-SELECT br.BRId, COUNT(c.BRId) AS usage_count
-FROM banking_relationships br
-LEFT JOIN clients c ON br.BRId = c.BRId
-GROUP BY br.BRId
-HAVING COUNT(c.BRId) > (
-    SELECT AVG(usage_count)
-    FROM (
-        SELECT br2.BRId, COUNT(c2.BRId) AS usage_count
-        FROM banking_relationships br2
-        LEFT JOIN clients c2 ON br2.BRId = c2.BRId
-        GROUP BY br2.BRId
-    ) t
-);
-
--- 52. Business Question: Show clients belonging to the gender with fewer total clients.
-SELECT c.Name, c.GenderId
-FROM clients c
-WHERE c.GenderId IN (
-    SELECT GenderId
-    FROM clients
-    GROUP BY GenderId
-    HAVING COUNT(*) = (
-        SELECT MIN(cnt)
-        FROM (
-            SELECT COUNT(*) AS cnt
-            FROM clients
-            GROUP BY GenderId
-        ) t
-    )
-);
-
--- 53. Business Question: Which advisors are in the top 25% by number of clients?
-SELECT IAId, client_count
-FROM (
-    SELECT 
-        IAId,
-        COUNT(*) AS client_count,
-        NTILE(4) OVER (ORDER BY COUNT(*) DESC) AS quartile
-    FROM clients
-    GROUP BY IAId
-) t
-WHERE quartile = 1;
-
--- 54. Business Question: For each client, show how many clients their advisor manages.
-SELECT 
-    c.BRId,
-    c.IAId,
-    (
-        SELECT COUNT(*) 
-        FROM clients c2 
-        WHERE c2.IAId = c.IAId
-    ) AS advisor_total_clients
-FROM clients c;
-
--- 55. Business Question: Show banking relationships and their rank by popularity.
-SELECT 
-    br.BRId,
-    (
-        SELECT COUNT(*) 
-        FROM clients c 
-        WHERE c.BRId = br.BRId
-    ) AS client_count,
-    (
-        SELECT COUNT(*) + 1
-        FROM banking_relationships br2
-        WHERE (
-            SELECT COUNT(*) FROM clients c WHERE c.BRId = br2.BRId
-        ) > (
-            SELECT COUNT(*) FROM clients c WHERE c.BRId = br.BRId
-        )
-    ) AS popularity_rank
-FROM banking_relationships br
-ORDER BY popularity_rank;
+	
 
 -- ================================
 -- SECTION 7: IN / EXISTS (56–65)
 -- ================================
 
 -- 56. Business Question: Show clients whose advisors exist in the advisor table.
+SELECT *
+FROM clients c
+WHERE c.IAId IN (SELECT IAId FROM investment_advisors);
 
 -- 57. Business Question: Which advisors have at least one client?
+SELECT *
+FROM investment_advisors ia
+WHERE EXISTS (SELECT Name FROM clients c WHERE c.IAId = ia.IAId);
 
 -- 58. Business Question: Show banking relationship types that are being used.
+SELECT *
+FROM banking_relationships br
+WHERE br.BRId IN (SELECT DISTINCT BRId FROM clients);
 
 -- 59. Business Question: Show clients whose gender is not in a specific subset.
+SELECT *
+FROM clients
+WHERE GenderId NOT IN (1, 3);
 
 -- 60. Business Question: Which advisors have no clients assigned?
+SELECT *
+FROM investment_advisors ia
+WHERE NOT EXISTS (SELECT name FROM clients c WHERE c.IAId = ia.IAId);
+
 
 -- 61. Business Question: Show all clients who share an advisor with client BRId = 100.
 
