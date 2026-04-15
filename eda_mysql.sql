@@ -479,10 +479,52 @@ WHERE NOT EXISTS (
 -- ================================
 
 -- 66. Business Question: Summarize clients per advisor using a CTE.
-
+WITH AdvisorSummary AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT ia.*, COALESCE(acs.client_count, 0) AS client_count
+FROM investment_advisors ia
+LEFT JOIN AdvisorSummary acs 
+    ON ia.IAId = acs.IAId;
+    
 -- 67. Business Question: Compare advisor and banking relationship popularity.
+WITH AdvisorStats AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+),
+BankingStats AS (
+    SELECT BRId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY BRId
+)
+SELECT 
+    AVG(a.client_count) AS avg_per_advisor,
+    AVG(b.client_count) AS avg_per_banking_type
+FROM AdvisorStats a
+CROSS JOIN BankingStats b;
 
 -- 68. Business Question: Show advisors with above-average client counts.
+WITH AdvisorCounts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+),
+AvgCount AS (
+    SELECT AVG(client_count) AS avg_clients
+    FROM AdvisorCounts
+)
+SELECT 
+    ia.IAId,
+    ia.`Investment Advisor`,
+    ac.client_count
+FROM AdvisorCounts ac
+JOIN investment_advisors ia 
+    ON ac.IAId = ia.IAId
+CROSS JOIN AvgCount avg
+WHERE ac.client_count > avg.avg_clients;
 
 -- 69. Business Question: Calculate market share for each advisor.
 
