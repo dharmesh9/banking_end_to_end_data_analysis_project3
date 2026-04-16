@@ -672,16 +672,75 @@ ORDER BY cumulative_percentage  DESC;
 -- ================================
 
 -- 76. Business Question: Assign unique ranks to advisors by number of clients.
+WITH advisor_counts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    IAId,
+    client_count,
+    ROW_NUMBER() OVER (ORDER BY client_count DESC) AS row_num
+FROM advisor_counts;
 
 -- 77. Business Question: Rank advisors allowing ties for same client counts.
+WITH advisor_counts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    IAId,
+    client_count,
+    RANK() OVER (ORDER BY client_count DESC) AS rank_with_gaps
+FROM advisor_counts;
 
 -- 78. Business Question: Rank advisors without gaps in ranking.
+WITH advisor_counts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    IAId,
+    client_count,
+    DENSE_RANK() OVER (ORDER BY client_count DESC) AS Rank_dense
+FROM advisor_counts;
 
 -- 79. Business Question: Divide advisors into quartiles based on client count.
+WITH advisor_counts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    IAId,
+    client_count,
+    NTILE(4) OVER (ORDER BY client_count DESC) AS quartile
+FROM advisor_counts;
 
 -- 80. Business Question: Rank clients within each advisor group.
+SELECT 
+    BRId,
+    IAId,
+    GenderId,
+    ROW_NUMBER() OVER (PARTITION BY IAId ORDER BY BRId) AS client_rank_within_advisor
+FROM clients;
 
 -- 81. Business Question: Show various rankings for advisors simultaneously.
+WITH advisor_counts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    IAId,
+    client_count,
+    ROW_NUMBER() OVER (ORDER BY client_count DESC) AS row_num,
+    RANK() OVER (ORDER BY client_count DESC) AS rank_num,
+    DENSE_RANK() OVER (ORDER BY client_count DESC) AS dense_rankk,
+    NTILE(3) OVER (ORDER BY client_count DESC) AS ntilee
+FROM advisor_counts;
 
 -- 82. Business Question: Rank banking relationships within each gender.
 
