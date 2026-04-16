@@ -743,13 +743,135 @@ SELECT
 FROM advisor_counts;
 
 -- 82. Business Question: Rank banking relationships within each gender.
+WITH gender_counts AS (
+    SELECT 
+        GenderId,
+        BRId,
+        COUNT(*) AS client_count
+    FROM clients
+    GROUP BY GenderId, BRId
+)
+SELECT 
+    GenderId,
+    BRId,
+    client_count,
+    RANK() OVER (
+        PARTITION BY GenderId 
+        ORDER BY client_count DESC
+    ) AS rank_within_gender
+FROM gender_counts;
 
 -- 83. Business Question: Calculate percentile rank for each advisor.
+WITH advisor_counts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    IAId,
+    client_count,
+    PERCENT_RANK() OVER (ORDER BY client_count) AS percentile_rank
+FROM advisor_counts;
 
 -- 84. Business Question: Show cumulative distribution of advisor client counts.
+WITH advisor_counts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    IAId,
+    client_count,
+    CUME_DIST() OVER (ORDER BY client_count) AS cumulative_distribution
+FROM advisor_counts;
 
 -- 85. Business Question: Rank advisors within each client count tier.
+WITH advisor_tiers AS (
+    SELECT 
+        IAId,
+        COUNT(*) AS client_count,
+        CASE 
+            WHEN COUNT(*) >= 170 THEN 'Tier 1'
+            WHEN COUNT(*) >= 85 THEN 'Tier 2'
+            ELSE 'Tier 3'
+        END AS tier
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    tier,
+    IAId,
+    client_count,
+    RANK() OVER (
+        PARTITION BY tier 
+        ORDER BY client_count DESC
+    ) AS rank_within_tier
+FROM advisor_tiers;
+-- 82. Business Question: Rank banking relationships within each gender.
+WITH gender_counts AS (
+    SELECT 
+        GenderId,
+        BRId,
+        COUNT(*) AS client_count
+    FROM clients
+    GROUP BY GenderId, BRId
+)
+SELECT 
+    GenderId,
+    BRId,
+    client_count,
+    RANK() OVER (
+        PARTITION BY GenderId 
+        ORDER BY client_count DESC
+    ) AS rank_within_gender
+FROM gender_counts;
 
+-- 83. Business Question: Calculate percentile rank for each advisor.
+WITH advisor_counts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    IAId,
+    client_count,
+    PERCENT_RANK() OVER (ORDER BY client_count) AS percentile_rank
+FROM advisor_counts;
+
+-- 84. Business Question: Show cumulative distribution of advisor client counts.
+WITH advisor_counts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    IAId,
+    client_count,
+    CUME_DIST() OVER (ORDER BY client_count) AS cumulative_distribution
+FROM advisor_counts;
+
+-- 85. Business Question: Rank advisors within each client count tier.
+WITH advisor_tiers AS (
+    SELECT 
+        IAId,
+        COUNT(*) AS client_count,
+        CASE 
+            WHEN COUNT(*) >= 170 THEN 'Tier 1'
+            WHEN COUNT(*) >= 85 THEN 'Tier 2'
+            ELSE 'Tier 3'
+        END AS tier
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    tier,
+    IAId,
+    client_count,
+    RANK() OVER (
+        PARTITION BY tier 
+        ORDER BY client_count DESC
+    ) AS rank_within_tier
+FROM advisor_tiers;
 
 -- ================================
 -- SECTION 10: Analytical Windows (86–95)
