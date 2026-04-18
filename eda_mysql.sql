@@ -878,14 +878,69 @@ FROM advisor_tiers;
 -- ================================
 
 -- 86. Business Question: Show each advisor's client count compared to the previous advisor.
+SELECT 
+    IAId,
+    client_count,
+    LAG(client_count) OVER (ORDER BY client_count DESC) AS prev_advisor_count,
+    client_count - LAG(client_count) OVER (ORDER BY client_count DESC) AS difference_from_prev
+FROM (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+) t;
 
 -- 87. Business Question: Show each advisor's client count compared to the next advisor.
+SELECT 
+    IAId,
+    client_count,
+    LEAD(client_count) OVER (ORDER BY client_count DESC) AS next_advisor_count,
+    client_count - LEAD(client_count) OVER (ORDER BY client_count DESC) AS difference_from_next
+FROM (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+) t;
 
 -- 88. Business Question: For each gender, show the most popular banking relationship.
+SELECT DISTINCT
+    GenderId,
+    FIRST_VALUE(BRId) OVER (
+        PARTITION BY GenderId 
+        ORDER BY usage_count DESC
+    ) AS most_popular_banking
+FROM (
+    SELECT GenderId, BRId, COUNT(*) AS usage_count
+    FROM clients
+    GROUP BY GenderId, BRId
+) t;
 
 -- 89. Business Question: Show the least popular banking relationship per gender.
+SELECT DISTINCT
+    GenderId,
+    LAST_VALUE(BRId) OVER (
+        PARTITION BY GenderId 
+        ORDER BY usage_count DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ) AS least_popular_banking
+FROM (
+    SELECT GenderId, BRId, COUNT(*) AS usage_count
+    FROM clients
+    GROUP BY GenderId, BRId
+) t;
 
 -- 90. Business Question: Calculate running total of clients by advisor.
+SELECT 
+    IAId,
+    client_count,
+    SUM(client_count) OVER (
+        ORDER BY IAId 
+        -- ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_total_clients
+FROM (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+) t;
 
 -- 91. Business Question: Calculate 3-advisor moving average of client counts.
 
