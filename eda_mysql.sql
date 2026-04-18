@@ -943,15 +943,71 @@ FROM (
 ) t;
 
 -- 91. Business Question: Calculate 3-advisor moving average of client counts.
+SELECT 
+    IAId,
+    client_count,
+    AVG(client_count) OVER (
+        ORDER BY IAId 
+        ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING
+    ) AS moving_avg_3
+FROM (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+) t;
 
 -- 92. Business Question: Running total of clients by banking relationship within each gender.
+SELECT 
+    GenderId,
+    BRId,
+    client_count,
+    SUM(client_count) OVER (
+        PARTITION BY GenderId 
+        ORDER BY BRId 
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_total_within_gender
+FROM (
+    SELECT GenderId, BRId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY GenderId, BRId
+) t;
 
 -- 93. Business Question: What percentage of total clients does each advisor manage?
+SELECT 
+    IAId,
+    client_count,
+    client_count * 100.0 / SUM(client_count) OVER () AS percentage_of_total
+FROM (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+) t;
 
 -- 94. Business Question: Show how each advisor's client count differs from the average.
+SELECT 
+    IAId,
+    client_count,
+    AVG(client_count) OVER () AS avg_clients,
+    client_count - AVG(client_count) OVER () AS difference_from_avg
+FROM (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+) t;
 
 -- 95. Business Question: Calculate clients in current and next 2 advisors.
-
+SELECT 
+    IAId,
+    client_count,
+    SUM(client_count) OVER (
+        ORDER BY IAId 
+        ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING
+    ) AS clients_next_3_advisors
+FROM (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+) t;
 
 -- ================================
 -- SECTION 11: CASE (96–100)
