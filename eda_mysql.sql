@@ -1014,15 +1014,88 @@ FROM (
 -- ================================
 
 -- 96. Business Question: Categorize advisors by portfolio size.
+SELECT 
+    IAId,
+    COUNT(*) AS client_count,
+    CASE 
+        WHEN COUNT(*) >= 150 THEN 'Large Portfolio'
+        WHEN COUNT(*) >= 80 THEN 'Medium Portfolio'
+        WHEN COUNT(*) >= 50 THEN 'Small Portfolio'
+        ELSE 'Very Small Portfolio'
+    END AS portfolio_category
+FROM clients
+GROUP BY IAId;
 
 -- 97. Business Question: Count clients by gender and banking relationship tier.
+SELECT 
+    GenderId,
+    SUM(CASE WHEN BRId IN (1, 2) THEN 1 ELSE 0 END) AS tier_1_banking,
+    SUM(CASE WHEN BRId IN (3, 4) THEN 1 ELSE 0 END) AS tier_2_banking,
+    SUM(CASE WHEN BRId >= 5 THEN 1 ELSE 0 END) AS tier_3_banking,
+    COUNT(*) AS total_clients
+FROM clients
+GROUP BY GenderId;
 
 -- 98. Business Question: Create complex advisor performance scoring.
+SELECT 
+    IAId,
+    COUNT(*) AS client_count,
+    COUNT(DISTINCT GenderId) AS gender_diversity,
+    COUNT(DISTINCT BRId) AS banking_diversity,
+    CASE 
+        WHEN COUNT(*) >= 150 THEN
+            CASE 
+                WHEN COUNT(DISTINCT BRId) >= 150 THEN 'Elite'
+                ELSE 'High Performer'
+            END
+        WHEN COUNT(*) >= 180 THEN
+            CASE 
+                WHEN COUNT(DISTINCT GenderId) >= 2 THEN 'Balanced'
+                ELSE 'Moderate'
+            END
+        ELSE 'Developing'
+    END AS advisor_grade
+FROM clients
+GROUP BY IAId;
 
 -- 99. Business Question: Flag advisors above or below median performance.
+SELECT 
+    IAId,
+    client_count,
+    NTILE(4) OVER (ORDER BY client_count) AS quartile,
+    CASE 
+        WHEN NTILE(4) OVER (ORDER BY client_count) = 4 THEN 'Top Quartile'
+        WHEN NTILE(4) OVER (ORDER BY client_count) = 3 THEN 'Above Median'
+        WHEN NTILE(4) OVER (ORDER BY client_count) = 2 THEN 'Below Median'
+        ELSE 'Bottom Quartile'
+    END AS performance_bracket
+FROM (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+) t;
 
 -- 100. Business Question: Identify potential data quality issues in client records.
-
+SELECT 
+    IAId,
+    GenderId,
+    BRId,
+    CASE 
+        WHEN IAId IS NULL THEN 'Missing Advisor'
+        WHEN GenderId IS NULL THEN 'Missing Gender'
+        WHEN BRId IS NULL THEN 'Missing Banking Relationship'
+        WHEN NOT EXISTS (
+            SELECT 1 FROM investment_advisors ia WHERE ia.IAId = clients.IAId
+        ) THEN 'Invalid Advisor Reference'
+        WHEN NOT EXISTS (
+            SELECT 1 FROM gender g WHERE g.GenderId = clients.GenderId
+        ) THEN 'Invalid Gender Reference'
+        WHEN NOT EXISTS (
+            SELECT 1 FROM banking_relationships br WHERE br.BRId = clients.BRId
+        ) THEN 'Invalid Banking Reference'
+        ELSE 'Valid'
+    END AS data_quality_status
+FROM clients;
 
 -- ================================
 -- SECTION 12: UNION (101–105)
