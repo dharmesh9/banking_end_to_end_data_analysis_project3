@@ -1169,15 +1169,96 @@ ORDER BY metric_type, value DESC;
 -- ================================
 
 -- 106. Business Question: Show client counts with subtotals by gender and advisor.
+SELECT 
+    COALESCE(GenderId, 999) AS GenderId,
+    COALESCE(IAId, 999) AS IAId,
+    COUNT(*) AS client_count
+FROM clients
+GROUP BY GenderId, IAId WITH ROLLUP;
 
 -- 107. Business Question: Analyze clients by multiple dimension combinations.
+SELECT GenderId, IAId, NULL AS BRId, COUNT(*) AS client_count,
+       0 AS g_gender, 0 AS g_advisor, 1 AS g_banking
+FROM clients
+GROUP BY GenderId, IAId
+
+UNION ALL
+
+SELECT GenderId, NULL AS IAId, BRId, COUNT(*) AS client_count,
+       0 AS g_gender, 1 AS g_advisor, 0 AS g_banking
+FROM clients
+GROUP BY GenderId, BRId
+
+UNION ALL
+
+SELECT NULL AS GenderId, IAId, BRId, COUNT(*) AS client_count,
+       1 AS g_gender, 0 AS g_advisor, 0 AS g_banking
+FROM clients
+GROUP BY IAId, BRId
+
+UNION ALL
+
+SELECT NULL, NULL, NULL, COUNT(*) AS client_count,
+       1, 1, 1
+FROM clients;
 
 -- 108. Business Question: Calculate comprehensive statistics for advisor client distribution.
+WITH AdvisorCounts AS (
+    SELECT IAId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    COUNT(*) AS total_advisors,
+    AVG(client_count) AS mean_clients,
+    MIN(client_count) AS min_clients,
+    MAX(client_count) AS max_clients,
+    STDDEV(client_count) AS stddev_clients,
+    VARIANCE(client_count) AS variance_clients
+FROM AdvisorCounts;
 
 -- 109. Business Question: Count clients meeting various criteria for each advisor.
+SELECT 
+    IAId,
+    COUNT(*) AS total_clients,
+    COUNT(CASE WHEN GenderId = 1 THEN 1 END) AS male_clients,
+    COUNT(CASE WHEN GenderId = 2 THEN 1 END) AS female_clients,
+    COUNT(CASE WHEN BRId IN (1, 2, 3) THEN 1 END) AS premium_banking,
+    COUNT(DISTINCT BRId) AS banking_diversity,
+    COUNT(DISTINCT GenderId) AS gender_diversity
+FROM clients
+GROUP BY IAId;
 
 -- 110. Business Question: Calculate concentration ratios and diversity metrics.
-
+WITH AdvisorStats AS (
+    SELECT 
+        IAId,
+        COUNT(*) AS client_count,
+        COUNT(DISTINCT GenderId) AS gender_count,
+        COUNT(DISTINCT BRId) AS banking_count
+    FROM clients
+    GROUP BY IAId
+),
+TotalClients AS (
+    SELECT COUNT(*) AS total FROM clients
+),
+TotalGenders AS (
+    SELECT COUNT(*) AS total FROM gender
+),
+TotalBanking AS (
+    SELECT COUNT(*) AS total FROM banking_relationships
+)
+SELECT 
+    ast.IAId,
+    ast.client_count,
+    ast.client_count * 100.0 / tc.total AS market_share_pct,
+    ast.gender_count * 100.0 / tg.total AS gender_coverage_pct,
+    ast.banking_count * 100.0 / tb.total AS banking_coverage_pct,
+    (ast.gender_count + ast.banking_count) / 2.0 AS diversity_score
+FROM AdvisorStats ast
+CROSS JOIN TotalClients tc
+CROSS JOIN TotalGenders tg
+CROSS JOIN TotalBanking tb;
 
 -- ================================
 -- SECTION 14: Recursive (111–112)
