@@ -1102,15 +1102,67 @@ FROM clients;
 -- ================================
 
 -- 101. Business Question: List all unique IDs across advisors and banking relationships.
+SELECT IAId AS id, 'Advisor' AS source
+FROM investment_advisors
+UNION
+SELECT BRId AS id, 'Banking Relationship' AS source
+FROM banking_relationships;
 
 -- 102. Business Question: Create a full audit trail of all ID assignments.
+SELECT BRId AS client_id, IAId AS assigned_id, 'Advisor Assignment' AS assignment_type
+FROM clients
+UNION ALL
+SELECT BRId AS client_id, BRId AS assigned_id, 'Banking Assignment' AS assignment_type
+FROM clients
+UNION ALL
+SELECT BRId AS client_id, GenderId AS assigned_id, 'Gender Assignment' AS assignment_type
+FROM clients;
 
 -- 103. Business Question: Compare counts across different dimensions.
+SELECT 'Advisors' AS category, COUNT(*) AS count
+FROM investment_advisors
+UNION
+SELECT 'Banking Relationships' AS category, COUNT(*) AS count
+FROM banking_relationships
+UNION
+SELECT 'Gender Categories' AS category, COUNT(*) AS count
+FROM gender
+UNION
+SELECT 'Total Clients' AS category, COUNT(*) AS count
+FROM clients;
 
 -- 104. Business Question: Identify high-value entities across categories.
+SELECT IAId AS entity_id, 'High-Value Advisor' AS category, COUNT(*) AS client_count
+FROM clients
+GROUP BY IAId
+HAVING COUNT(*) > 100
+
+UNION
+
+SELECT BRId AS entity_id, 'Popular Banking Type' AS category, COUNT(*) AS client_count
+FROM clients
+GROUP BY BRId
+HAVING COUNT(*) > 500
+
+ORDER BY client_count DESC;
 
 -- 105. Business Question: Create comprehensive summary report.
-
+WITH AdvisorMetrics AS (
+    SELECT 'Advisor' AS metric_type, IAId AS id, COUNT(*) AS value
+    FROM clients
+    GROUP BY IAId
+),
+BankingMetrics AS (
+    SELECT 'Banking' AS metric_type, BRId AS id, COUNT(*) AS value
+    FROM clients
+    GROUP BY BRId
+)
+SELECT * FROM AdvisorMetrics
+WHERE value > 10
+UNION
+SELECT * FROM BankingMetrics
+WHERE value > 20
+ORDER BY metric_type, value DESC;
 
 -- ================================
 -- SECTION 13: Aggregations (106–110)
