@@ -118,7 +118,7 @@ FROM clients
 WHERE IAId NOT IN(1,2,3);
 
 -- 20. Business Question: How many clients don't have banking relationship ID 1?
-SELECT *
+SELECT COUNT(*) AS clients_without_br1
 FROM clients
 WHERE BRId != 1;
 
@@ -149,10 +149,13 @@ INNER JOIN banking_relationships br  on  c.BRId = br.BRId
 INNER JOIN investment_advisors ia on c.IAId = ia.IAId;
 
 -- 25. Business Question: How many clients does each advisor have (showing advisor details)?
-SELECT ia.*, COUNT(c.BRId) AS client_count
+SELECT 
+    ia.IAId,
+    ia.`Investment Advisor`,
+    COUNT(c.Client_ID) AS client_count
 FROM investment_advisors ia
-INNER JOIN clients c ON ia.IAId = c.IAId
-GROUP BY ia.IAId;
+JOIN clients c ON ia.IAId = c.IAId
+GROUP BY ia.IAId, ia.`Investment Advisor`;
 
 -- 26. Business Question: Show female clients with their advisor information.
 SELECT c.*, ia.*
@@ -185,14 +188,14 @@ ORDER BY ia.IAId, c.BRId;
 SELECT c1.Name, c1.BRId AS client1, c2.BRId AS client2, c1.IAId, c1.GenderId
 FROM clients c1
 INNER JOIN clients c2 ON c1.IAId = c2.IAId AND c1.GenderId = c2.GenderId
-WHERE c1.BRId < c2.BRId;
+WHERE c1.Client_ID < c2.Client_ID;
 
 -- ================================
 -- SECTION 4: LEFT JOIN (31–40)
 -- ================================
 
 -- 31. Business Question: Show all advisors and how many clients they have (including those with no clients).
-SELECT ia.IAId,ia.`Investment Advisor`, COUNT(c.IAId)
+SELECT ia.IAId,ia.`Investment Advisor`, COUNT(c.IAId) AS client_count
 FROM investment_advisors ia
 LEFT JOIN clients c ON ia.IAId = c.IAId
 GROUP BY ia.IAId;
@@ -297,7 +300,7 @@ FROM clients c
 LEFT JOIN investment_advisors ia 
     ON c.IAId = ia.IAId
 
-UNION
+UNION ALL
 
 SELECT c.*, ia.*
 FROM clients c
@@ -310,7 +313,7 @@ FROM banking_relationships br
 LEFT JOIN clients c 
     ON br.BRId = c.BRId
 
-UNION
+UNION ALL
 
 SELECT br.*, c.*
 FROM banking_relationships br
@@ -501,11 +504,9 @@ BankingStats AS (
     GROUP BY BRId
 )
 SELECT 
-    AVG(a.client_count) AS avg_per_advisor,
-    AVG(b.client_count) AS avg_per_banking_type
-FROM AdvisorStats a
-CROSS JOIN BankingStats b;
-
+    (SELECT AVG(client_count) FROM AdvisorStats) AS avg_per_advisor,
+    (SELECT AVG(client_count) FROM BankingStats) AS avg_per_banking_type;
+    
 -- 68. Business Question: Show advisors with above-average client counts.
 WITH AdvisorCounts AS (
     SELECT IAId, COUNT(*) AS client_count
@@ -1043,37 +1044,45 @@ SELECT
     COUNT(DISTINCT GenderId) AS gender_diversity,
     COUNT(DISTINCT BRId) AS banking_diversity,
     CASE 
-        WHEN COUNT(*) >= 150 THEN
-            CASE 
-                WHEN COUNT(DISTINCT BRId) >= 150 THEN 'Elite'
-                ELSE 'High Performer'
-            END
         WHEN COUNT(*) >= 180 THEN
             CASE 
-                WHEN COUNT(DISTINCT GenderId) >= 2 THEN 'Balanced'
-                ELSE 'Moderate'
+                WHEN COUNT(DISTINCT GenderId) >= 2 THEN 'Elite Balanced'
+                ELSE 'Elite Concentrated'
             END
+        WHEN COUNT(*) >= 150 THEN
+            CASE 
+                WHEN COUNT(DISTINCT BRId) >= 3 THEN 'High Performer Diversified'
+                ELSE 'High Performer'
+            END
+        WHEN COUNT(*) >= 80 THEN 'Mid Tier'
         ELSE 'Developing'
     END AS advisor_grade
 FROM clients
 GROUP BY IAId;
 
 -- 99. Business Question: Flag advisors above or below median performance.
+WITH ranked AS (
+    SELECT 
+        IAId,
+        client_count,
+        NTILE(4) OVER (ORDER BY client_count) AS quartile
+    FROM (
+        SELECT IAId, COUNT(*) AS client_count
+        FROM clients
+        GROUP BY IAId
+    ) t
+)
 SELECT 
     IAId,
     client_count,
-    NTILE(4) OVER (ORDER BY client_count) AS quartile,
+    quartile,
     CASE 
-        WHEN NTILE(4) OVER (ORDER BY client_count) = 4 THEN 'Top Quartile'
-        WHEN NTILE(4) OVER (ORDER BY client_count) = 3 THEN 'Above Median'
-        WHEN NTILE(4) OVER (ORDER BY client_count) = 2 THEN 'Below Median'
+        WHEN quartile = 4 THEN 'Top Quartile'
+        WHEN quartile = 3 THEN 'Above Median'
+        WHEN quartile = 2 THEN 'Below Median'
         ELSE 'Bottom Quartile'
     END AS performance_bracket
-FROM (
-    SELECT IAId, COUNT(*) AS client_count
-    FROM clients
-    GROUP BY IAId
-) t;
+FROM ranked;
 
 -- 100. Business Question: Identify potential data quality issues in client records.
 SELECT 
@@ -1109,13 +1118,26 @@ SELECT BRId AS id, 'Banking Relationship' AS source
 FROM banking_relationships;
 
 -- 102. Business Question: Create a full audit trail of all ID assignments.
-SELECT BRId AS client_id, IAId AS assigned_id, 'Advisor Assignment' AS assignment_type
+SELECT  
+    Client_ID AS client_id, 
+    IAId AS assigned_id, 
+    'Advisor Assignment' AS assignment_type
 FROM clients
+
 UNION ALL
-SELECT BRId AS client_id, BRId AS assigned_id, 'Banking Assignment' AS assignment_type
+
+SELECT  
+    Client_ID AS client_id, 
+    BRId AS assigned_id, 
+    'Banking Assignment' AS assignment_type
 FROM clients
+
 UNION ALL
-SELECT BRId AS client_id, GenderId AS assigned_id, 'Gender Assignment' AS assignment_type
+
+SELECT  
+    Client_ID AS client_id, 
+    GenderId AS assigned_id, 
+    'Gender Assignment' AS assignment_type
 FROM clients;
 
 -- 103. Business Question: Compare counts across different dimensions.
