@@ -1373,11 +1373,199 @@ LEFT JOIN ActualCombinations act
 ORDER BY ac.IAId, ac.GenderId, ac.BRId;
 
 -- 116. Business Question: Identify concentration risks in client distribution.
+WITH AdvisorConcentration AS (
+    SELECT 
+        IAId,
+        COUNT(*) AS client_count,
+        COUNT(*) * 100.0 / SUM(COUNT(*)) OVER () AS market_share
+    FROM clients
+    GROUP BY IAId
+),
+TopAdvisors AS (
+    SELECT 
+        SUM(CASE WHEN market_share >= 10 THEN market_share ELSE 0 END) AS top_advisor_concentration,
+        COUNT(CASE WHEN market_share >= 10 THEN 1 END) AS high_concentration_advisors
+    FROM AdvisorConcentration
+)
+SELECT 
+    *,
+    CASE 
+        WHEN top_advisor_concentration > 50 THEN 'High Risk'
+        WHEN top_advisor_concentration > 30 THEN 'Medium Risk'
+        ELSE 'Low Risk'
+    END AS concentration_risk_level
+FROM TopAdvisors;
 
 -- 117. Business Question: Compare each advisor against peer groups.
-
+WITH AdvisorMetrics AS (
+    SELECT 
+        IAId,
+        COUNT(*) AS client_count,
+        COUNT(DISTINCT GenderId) AS gender_diversity,
+        COUNT(DISTINCT BRId) AS banking_diversity
+    FROM clients
+    GROUP BY IAId
+),
+Ranked AS (
+    SELECT 
+        *,
+        NTILE(3) OVER (ORDER BY client_count) AS peer_group
+    FROM AdvisorMetrics
+),
+PeerBenchmarks AS (
+    SELECT 
+        peer_group,
+        AVG(client_count) AS avg_clients,
+        AVG(gender_diversity) AS avg_gender_diversity,
+        AVG(banking_diversity) AS avg_banking_diversity
+    FROM Ranked
+    GROUP BY peer_group
+)
+SELECT 
+    r.IAId,
+    r.client_count,
+    r.peer_group,
+    pb.avg_clients AS peer_avg_clients,
+    r.client_count - pb.avg_clients AS vs_peer_avg,
+    CASE 
+        WHEN r.client_count > pb.avg_clients * 1.2 THEN 'Above Average'
+        WHEN r.client_count < pb.avg_clients * 0.8 THEN 'Below Average'
+        ELSE 'Average'
+    END AS performance_vs_peers
+FROM Ranked r
+JOIN PeerBenchmarks pb 
+    ON r.peer_group = pb.peer_group;
+    
 -- 118. Business Question: Identify underserved segments and opportunity areas.
+WITH SegmentCounts AS (
+    SELECT GenderId, BRId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY GenderId, BRId
+),
+SegmentStats AS (
+    SELECT 
+        AVG(client_count) AS avg_segment_size,
+        STDDEV(client_count) AS stddev_segment_size
+    FROM SegmentCounts
+)
+SELECT 
+    sc.GenderId,
+    sc.BRId,
+    sc.client_count,
+    ss.avg_segment_size,
+    CASE 
+        WHEN sc.client_count < ss.avg_segment_size - ss.stddev_segment_size THEN 'High Opportunity'
+        WHEN sc.client_count < ss.avg_segment_size THEN 'Medium Opportunity'
+        ELSE 'Saturated'
+    END AS opportunity_level,
+    GREATEST(0, ss.avg_segment_size - sc.client_count) AS potential_new_clients
+FROM SegmentCounts sc
+CROSS JOIN SegmentStats ss
+ORDER BY potential_new_clients DESC;
 
 -- 119. Business Question: Analyze variance in client distribution across all dimensions.
+WITH DimensionVariance AS (
+    SELECT 
+        'By Advisor' AS dimension,
+        VAR_SAMP(client_count) AS variance_value,
+        STDDEV_SAMP(client_count) AS stddev_value,
+        AVG(client_count) AS mean_value
+    FROM (
+        SELECT IAId, COUNT(*) AS client_count
+        FROM clients
+        GROUP BY IAId
+    ) a
+
+    UNION ALL
+
+    SELECT 
+        'By Gender',
+        VAR_SAMP(client_count),
+        STDDEV_SAMP(client_count),
+        AVG(client_count)
+    FROM (
+        SELECT GenderId, COUNT(*) AS client_count
+        FROM clients
+        GROUP BY GenderId
+    ) g
+
+    UNION ALL
+
+    SELECT 
+        'By Banking Type',
+        VAR_SAMP(client_count),
+        STDDEV_SAMP(client_count),
+        AVG(client_count)
+    FROM (
+        SELECT BRId, COUNT(*) AS client_count
+        FROM clients
+        GROUP BY BRId
+    ) b
+)
+SELECT 
+    *,
+    stddev_value / NULLIF(mean_value, 0) AS coefficient_of_variation,
+    CASE 
+        WHEN stddev_value / NULLIF(mean_value, 0) > 0.5 THEN 'High Variability'
+        WHEN stddev_value / NULLIF(mean_value, 0) > 0.25 THEN 'Moderate Variability'
+        ELSE 'Low Variability'
+    END AS variability_assessment
+FROM DimensionVariance;
 
 -- 120. Business Question: Generate executive dashboard with key performance indicators.
+WITH TotalStats AS (
+    SELECT 
+        COUNT(*) AS total_clients,
+        COUNT(DISTINCT IAId) AS active_advisors,
+        COUNT(DISTINCT GenderId) AS gender_categories,
+        COUNT(DISTINCT BRId) AS banking_types_used
+    FROM clients
+),
+AdvisorPerformance AS (
+    SELECT 
+        AVG(client_count) AS avg_clients_per_advisor,
+        MIN(client_count) AS min_clients,
+        MAX(client_count) AS max_clients,
+        STDDEV_SAMP(client_count) AS stddev_clients
+    FROM (
+        SELECT IAId, COUNT(*) AS client_count
+        FROM clients
+        GROUP BY IAId
+    ) sub
+),
+GenderBalance AS (
+    SELECT 
+        GenderId,
+        COUNT(*) AS client_count,
+        COUNT(*) * 100.0 / SUM(COUNT(*)) OVER () AS percentage
+    FROM clients
+    GROUP BY GenderId
+),
+TopBankingTypes AS (
+    SELECT 
+        BRId,
+        COUNT(*) AS usage_count,
+        RANK() OVER (ORDER BY COUNT(*) DESC) AS popularity_rank
+    FROM clients
+    GROUP BY BRId
+)
+SELECT 'Total Clients', total_clients, NULL FROM TotalStats
+UNION ALL
+SELECT 'Active Advisors', active_advisors, NULL FROM TotalStats
+UNION ALL
+SELECT 'Avg Clients/Advisor', ROUND(avg_clients_per_advisor, 2), NULL FROM AdvisorPerformance
+UNION ALL
+SELECT 'Advisor Load Std Dev', ROUND(stddev_clients, 2), 'Variance' FROM AdvisorPerformance
+UNION ALL
+SELECT 
+    'Gender Distribution', 
+    client_count, 
+    CONCAT('Gender ', GenderId, ': ', ROUND(percentage, 1), '%')
+FROM GenderBalance
+UNION ALL
+SELECT 
+    'Top Banking Type', 
+    usage_count, 
+    CONCAT('Rank ', popularity_rank, ': Type ', BRId)
+FROM TopBankingTypes
+WHERE popularity_rank <= 3;
