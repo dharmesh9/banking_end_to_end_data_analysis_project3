@@ -1265,19 +1265,112 @@ CROSS JOIN TotalBanking tb;
 -- ================================
 
 -- 111. Business Question: Generate a series to identify gaps in advisor IDs.
+WITH RECURSIVE NumberSeries AS (
+    SELECT 1 AS num
+    UNION ALL
+    SELECT num + 1
+    FROM NumberSeries
+    WHERE num < (SELECT MAX(IAId) FROM investment_advisors)
+)
+SELECT ns.num AS missing_advisor_id
+FROM NumberSeries ns
+LEFT JOIN investment_advisors ia 
+    ON ns.num = ia.IAId
+WHERE ia.IAId IS NULL;
 
 -- 112. Business Question: Simulate organizational hierarchy depth.
+WITH RECURSIVE AdvisorHierarchy AS (
+    SELECT IAId, 1 AS level
+    FROM investment_advisors
+    WHERE IAId <= 5
 
+    UNION ALL
+
+    SELECT IAId, level + 1
+    FROM AdvisorHierarchy
+    WHERE level < 3
+)
+SELECT IAId, MAX(level) AS max_depth
+FROM AdvisorHierarchy
+GROUP BY IAId;
 
 -- ================================
 -- SECTION 15: Business Scenarios (113–120)
 -- ================================
 
 -- 113. Business Question: Segment clients into strategic categories based on multiple factors.
+WITH AdvisorCounts AS (
+    SELECT IAId, COUNT(*) AS advisor_client_count
+    FROM clients
+    GROUP BY IAId
+),
+BankingCounts AS (
+    SELECT BRId, COUNT(*) AS banking_popularity
+    FROM clients
+    GROUP BY BRId
+)
+SELECT 
+    c.BRId,
+    c.GenderId,
+    c.IAId,
+    ac.advisor_client_count,
+    bc.banking_popularity,
+    CASE 
+        WHEN ac.advisor_client_count > 170 AND bc.banking_popularity > 400 THEN 'Premium High-Demand'
+        WHEN ac.advisor_client_count > 88 THEN 'Premium Niche'
+        WHEN bc.banking_popularity > 80 THEN 'Standard High-Demand'
+        ELSE 'Standard'
+    END AS client_segment
+FROM clients c
+JOIN AdvisorCounts ac ON c.IAId = ac.IAId
+JOIN BankingCounts bc ON c.BRId = bc.BRId;
 
 -- 114. Business Question: Analyze client distribution patterns.
+WITH AdvisorCohorts AS (
+    SELECT 
+        IAId,
+        NTILE(5) OVER (ORDER BY IAId) AS advisor_cohort,
+        COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId
+)
+SELECT 
+    advisor_cohort,
+    COUNT(*) AS advisors_in_cohort,
+    AVG(client_count) AS avg_clients,
+    SUM(client_count) AS total_clients,
+    SUM(client_count) * 100.0 / SUM(SUM(client_count)) OVER () AS pct_of_total_clients
+FROM AdvisorCohorts
+GROUP BY advisor_cohort
+ORDER BY advisor_cohort;
 
 -- 115. Business Question: Which advisor-gender-banking combinations exist and which don't?
+WITH AllCombinations AS (
+    SELECT ia.IAId, g.GenderId, br.BRId
+    FROM investment_advisors ia
+    CROSS JOIN gender g
+    CROSS JOIN banking_relationships br
+),
+ActualCombinations AS (
+    SELECT IAId, GenderId, BRId, COUNT(*) AS client_count
+    FROM clients
+    GROUP BY IAId, GenderId, BRId
+)
+SELECT 
+    ac.IAId,
+    ac.GenderId,
+    ac.BRId,
+    COALESCE(act.client_count, 0) AS clients,
+    CASE 
+        WHEN act.client_count IS NULL THEN 'Gap' 
+        ELSE 'Covered' 
+    END AS status
+FROM AllCombinations ac
+LEFT JOIN ActualCombinations act
+    ON ac.IAId = act.IAId
+    AND ac.GenderId = act.GenderId
+    AND ac.BRId = act.BRId
+ORDER BY ac.IAId, ac.GenderId, ac.BRId;
 
 -- 116. Business Question: Identify concentration risks in client distribution.
 
